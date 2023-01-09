@@ -1,0 +1,41 @@
+version: '3.2'
+services:
+  dev:
+    build: 
+      context: .
+      dockerfile: Dockerfile.dev
+      args:
+        - --cap-add=SYS_PTRACE
+        - --security-opt
+        - seccomp=unconfined
+    volumes:
+      - ..:/src
+    ports:
+      - "45612:8080"
+    command: /bin/bash -c "dotnet build; while sleep 1000; do :; done"
+    container_name: effort_visualizer_dev
+    environment: 
+      DB_SERVERNAME: effort_visualizer_rdb_dev
+      DB_USERID: postgres
+      DB_NAME: postgres
+      DB_PORT: 5432
+      DB_PASSWORD: mysecretpassword
+      GOOGLE_CLIENT_ID: 1038036987590-67hu5cedcmtqmuc77s9kvc2dhthl1gv4.apps.googleusercontent.com
+    depends_on:
+      - rdb
+  rdb:
+    build:
+      context: ../postgres
+      dockerfile: Dockerfile
+    container_name: effort_visualizer_rdb_dev
+    volumes:
+      - databsae_volume:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: mysecretpassword
+    ports:
+      - "5432"
+volumes:
+  databsae_volume:
+    driver: local

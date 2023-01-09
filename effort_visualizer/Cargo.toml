@@ -1,0 +1,19 @@
+[package]
+name = "effort_visualizer"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+actix-web = "4"
+anyhow = "1.0.57"
+async-trait = "0.1.53"
+actix-cors = "0.6.4"
+futures = "0.3.21"
+google-signin = "0.3.0"
+itertools = "0.10.3"
+serde = { version = "1.0.152", features = ["derive"] }
+tokio = { version = "1.18.2", features = ["full"] }
+tokio-postgres = { version = "0.7.6", features = ["with-chrono-0_4"] }
+tracing = "0.1.37"
