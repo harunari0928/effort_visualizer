@@ -1,58 +1,110 @@
-use std::env;
+pub mod domain;
+mod repositories;
 
 use actix_cors::Cors;
-use actix_web::{http, post, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{
+    http,
+    middleware::Logger,
+    post,
+    web::{self, Data},
+    App, HttpResponse, HttpServer, Responder,
+};
+use anyhow::Result;
+use repositories::users_repository::{UserRepository, UserRepositoryImpl};
 use serde::Deserialize;
+use std::env;
+use tracing::Level;
 
 #[derive(Deserialize)]
-struct CredentialInfo {
+pub struct CredentialInfo {
     credential: String,
 }
 
 #[post("/login")]
-async fn login(credential_info: web::Json<CredentialInfo>) -> impl Responder {
-    let envs = get_env_settings();
-    let [_, _, _, _, _, google_client_id] = envs.map(|x| x.unwrap());
-
+pub async fn login(
+    env_variables: Data<EnvVariables>,
+    user_repository: Data<Box<dyn UserRepository>>,
+    credential_info: web::Json<CredentialInfo>,
+) -> impl Responder {
     let mut client = google_signin::Client::new();
-    client.audiences.push(google_client_id);
+    client
+        .audiences
+        .push(env_variables.google_client_id.to_owned());
     let id_info = client
         .verify(&credential_info.credential)
         .expect("Expected token to be valid");
-    HttpResponse::Ok().finish()
+    match id_info.email {
+        None => HttpResponse::Unauthorized().finish(),
+        Some(email) => match user_repository.find(&email).await {
+            Ok(maybe_user) => match maybe_user {
+                Some(_) => HttpResponse::Ok().finish(),
+                None => HttpResponse::Continue().finish(),
+            },
+            Err(error) => HttpResponse::Unauthorized().body(error.to_string()),
+        },
+    }
 }
 
 #[actix_web::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> Result<()> {
+    init_logger();
+    get_env_settings()?;
+    std::env::set_var("RUST_LOG", "actix_web=trace");
     HttpServer::new(|| {
+        let env = get_env_settings().unwrap();
+        let repository: Box<dyn UserRepository> = Box::new(UserRepositoryImpl::new(
+            env.db_server.to_owned(),
+            env.db_port.to_owned(),
+            env.db_name.to_owned(),
+            env.db_user_id.to_owned(),
+            env.db_password.to_owned(),
+        ));
         let cors = Cors::default()
             .allowed_origin("http://localhost:8081")
             .allowed_methods(vec!["GET", "POST"])
             .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
             .allowed_header(http::header::CONTENT_TYPE)
             .max_age(3600);
-        App::new().wrap(cors).service(login)
+        App::new()
+            .wrap(Logger::default())
+            .wrap(cors)
+            .app_data(Data::new(env))
+            .app_data(Data::new(repository))
+            .service(login)
     })
-    .bind(("0.0.0.0", 8080))?
+    .bind(("0.0.0.0", 8080))
+    .expect("Can't running HTTP Server")
     .run()
-    .await
+    .await?;
+    Ok(())
 }
 
-fn get_env_settings() -> [Result<String, String>; 6] {
-    [
-        "DB_SERVERNAME",
-        "DB_USERID",
-        "DB_NAME",
-        "DB_PORT",
-        "DB_PASSWORD",
-        "GOOGLE_CLIENT_ID",
-    ]
-    .map(|key| env::var(key).map_err(|err| format!("{err}({key})")))
+fn init_logger() {
+    tracing_subscriber::fmt()
+        // filter spans/events with level TRACE or higher.
+        .with_max_level(Level::TRACE)
+        .json()
+        .flatten_event(true)
+        // build but do not install the subscriber.
+        .init();
 }
 
-fn create_error_messages(envs: [Result<String, String>; 6]) -> String {
-    envs.iter()
-        .filter_map(|x| x.as_ref().err().map(|x| x.to_owned()))
-        .collect::<Vec<String>>()
-        .join(",\n")
+pub struct EnvVariables {
+    db_server: String,
+    db_port: String,
+    db_name: String,
+    db_user_id: String,
+    db_password: String,
+    google_client_id: String,
+}
+
+fn get_env_settings() -> Result<EnvVariables> {
+    Ok(EnvVariables {
+        db_server: env::var("DB_SERVERNAME")?,
+        db_port: env::var("DB_PORT")?,
+        db_name: env::var("DB_NAME")?,
+        db_user_id: env::var("DB_USERID")?,
+        db_password: env::var("DB_PASSWORD")?,
+        google_client_id: env::var("GOOGLE_CLIENT_ID")?,
+    })
 }
