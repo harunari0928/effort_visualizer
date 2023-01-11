@@ -1,9 +1,9 @@
 use crate::domain::users::User;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use async_trait::async_trait;
 use chrono::NaiveDate;
 use tokio_postgres::{types::ToSql, Client, NoTls, Row};
-use tracing::info;
+use tracing::error;
 
 #[async_trait]
 pub trait UserRepository {
@@ -31,12 +31,11 @@ impl UserRepositoryImpl {
 
     async fn connect_database(&self) -> Result<Client> {
         let (client, connection) = tokio_postgres::connect(&self.connection_str, NoTls).await?;
-        info!("connect database1");
-        info!(self.connection_str);
-        tokio::spawn(connection)
-            .await
-            .context("connection error.")??;
-        info!("connect database2");
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                error!("connection error: {}", e);
+            }
+        });
         Ok(client)
     }
 
@@ -87,7 +86,6 @@ impl UserRepository for UserRepositoryImpl {
 
     async fn find(&self, email: &str) -> Result<Option<User>> {
         let row: Vec<&'_ (dyn ToSql + Sync)> = vec![&email];
-        info!("execute find");
         let query_result = self
             .connect_database()
             .await?

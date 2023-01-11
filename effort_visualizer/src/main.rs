@@ -38,7 +38,7 @@ pub async fn login(
         Some(email) => match user_repository.find(&email).await {
             Ok(maybe_user) => match maybe_user {
                 Some(_) => HttpResponse::Ok().finish(),
-                None => HttpResponse::Continue().finish(),
+                None => HttpResponse::Accepted().finish(),
             },
             Err(error) => HttpResponse::Unauthorized().body(error.to_string()),
         },
@@ -48,17 +48,17 @@ pub async fn login(
 #[actix_web::main]
 async fn main() -> Result<()> {
     init_logger();
-    get_env_settings()?;
-    std::env::set_var("RUST_LOG", "actix_web=trace");
-    HttpServer::new(|| {
-        let env = get_env_settings().unwrap();
-        let repository: Box<dyn UserRepository> = Box::new(UserRepositoryImpl::new(
-            env.db_server.to_owned(),
-            env.db_port.to_owned(),
-            env.db_name.to_owned(),
-            env.db_user_id.to_owned(),
-            env.db_password.to_owned(),
-        ));
+    std::env::set_var("RUST_LOG", "actix_web=info");
+    let env = Data::new(get_env_settings()?);
+    HttpServer::new(move || {
+        let repository: Data<Box<dyn UserRepository>> =
+            Data::new(Box::new(UserRepositoryImpl::new(
+                env.db_server.to_owned(),
+                env.db_port.to_owned(),
+                env.db_name.to_owned(),
+                env.db_user_id.to_owned(),
+                env.db_password.to_owned(),
+            )));
         let cors = Cors::default()
             .allowed_origin("http://localhost:8081")
             .allowed_methods(vec!["GET", "POST"])
@@ -68,8 +68,8 @@ async fn main() -> Result<()> {
         App::new()
             .wrap(Logger::default())
             .wrap(cors)
-            .app_data(Data::new(env))
-            .app_data(Data::new(repository))
+            .app_data(env.clone())
+            .app_data(repository.clone())
             .service(login)
     })
     .bind(("0.0.0.0", 8080))
@@ -82,7 +82,7 @@ async fn main() -> Result<()> {
 fn init_logger() {
     tracing_subscriber::fmt()
         // filter spans/events with level TRACE or higher.
-        .with_max_level(Level::TRACE)
+        .with_max_level(Level::INFO)
         .json()
         .flatten_event(true)
         // build but do not install the subscriber.
