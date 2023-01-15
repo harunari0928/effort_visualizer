@@ -10,7 +10,7 @@ actix-web = "4"
 anyhow = "1.0.57"
 async-trait = "0.1.53"
 actix-cors = "0.6.4"
-chrono = "0.4.23"
+actix-session = { version = "0.7.2", features = ["cookie-session"] }
 futures = "0.3.21"
 google-signin = "0.3.0"
 itertools = "0.10.3"

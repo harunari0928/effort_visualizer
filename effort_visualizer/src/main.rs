@@ -2,18 +2,24 @@ pub mod domain;
 mod repositories;
 
 use actix_cors::Cors;
+use actix_session::{storage::CookieSessionStore, Session, SessionMiddleware};
 use actix_web::{
+    cookie::Key,
     http,
     middleware::Logger,
     post,
     web::{self, Data},
     App, HttpResponse, HttpServer, Responder,
 };
-use anyhow::Result;
+use anyhow::{Context, Result};
+use async_trait::async_trait;
+use futures::FutureExt;
 use repositories::users_repository::{UserRepository, UserRepositoryImpl};
 use serde::Deserialize;
 use std::env;
-use tracing::Level;
+use tracing::{error, Level};
+
+use crate::domain::users::User;
 
 #[derive(Deserialize)]
 pub struct CredentialInfo {
@@ -22,6 +28,7 @@ pub struct CredentialInfo {
 
 #[post("/login")]
 pub async fn login(
+    session: Session,
     env_variables: Data<EnvVariables>,
     user_repository: Data<Box<dyn UserRepository>>,
     credential_info: web::Json<CredentialInfo>,
@@ -30,18 +37,81 @@ pub async fn login(
     client
         .audiences
         .push(env_variables.google_client_id.to_owned());
-    let id_info = client
-        .verify(&credential_info.credential)
-        .expect("Expected token to be valid");
-    match id_info.email {
-        None => HttpResponse::Unauthorized().finish(),
-        Some(email) => match user_repository.find(&email).await {
-            Ok(maybe_user) => match maybe_user {
-                Some(_) => HttpResponse::Ok().finish(),
-                None => HttpResponse::Accepted().finish(),
+    let maybe_id_info = client.verify(&credential_info.credential);
+    match maybe_id_info {
+        Ok(id_token) => match id_token.email {
+            None => HttpResponse::Unauthorized().finish(),
+            Some(email) => match user_repository.find(&email).await {
+                Ok(maybe_user) => match maybe_user {
+                    Some(user) => {
+                        session.insert("current_user", user);
+                        HttpResponse::Ok().finish()
+                    }
+                    None => HttpResponse::Accepted().finish(),
+                },
+                Err(error) => HttpResponse::Unauthorized().body(error.to_string()),
             },
-            Err(error) => HttpResponse::Unauthorized().body(error.to_string()),
         },
+        Err(e) => HttpResponse::Forbidden().body(e.to_string()),
+    }
+}
+
+#[derive(Deserialize)]
+pub struct SignupInfo {
+    token: CredentialInfo,
+    user_name: String,
+}
+
+#[post("/signup")]
+pub async fn signup(
+    session: Session,
+    env_variables: Data<EnvVariables>,
+    user_repository: Data<Box<dyn UserRepository>>,
+    signup_info: web::Json<SignupInfo>,
+) -> impl Responder {
+    if signup_info.user_name.is_empty() {
+        HttpResponse::BadRequest().body("user_name is empty.")
+    } else {
+        let mut client = google_signin::Client::new();
+        client
+            .audiences
+            .push(env_variables.google_client_id.to_owned());
+        let maybe_id_info = client.verify(&signup_info.token.credential);
+        match maybe_id_info {
+            Ok(id_token) => match id_token.email {
+                None => HttpResponse::Unauthorized().finish(),
+                Some(email) => match user_repository.find(&email).await {
+                    Ok(maybe_user) => match maybe_user {
+                        Some(_) => HttpResponse::Forbidden().body("you already sign up."),
+                        None => {
+                            let new_user = User {
+                                email,
+                                external_id: id_token.sub,
+                                user_name: signup_info.user_name.to_owned(),
+                                registered_date: std::time::SystemTime::now(),
+                                updated_date: std::time::SystemTime::now(),
+                            };
+                            match user_repository
+                                .add(new_user.clone())
+                                .await
+                                .context("user insert is failed.")
+                            {
+                                Ok(_) => {
+                                    session.insert("current_user", new_user);
+                                    HttpResponse::Ok().finish()
+                                }
+                                Err(e) => {
+                                    error!("{}", e.to_string());
+                                    HttpResponse::InternalServerError().finish()
+                                }
+                            }
+                        }
+                    },
+                    Err(error) => HttpResponse::Unauthorized().body(error.to_string()),
+                },
+            },
+            Err(e) => HttpResponse::Unauthorized().body(e.to_string()),
+        }
     }
 }
 
@@ -49,6 +119,7 @@ pub async fn login(
 async fn main() -> Result<()> {
     init_logger();
     std::env::set_var("RUST_LOG", "actix_web=info");
+    let secret_key = Key::generate();
     let env = Data::new(get_env_settings()?);
     HttpServer::new(move || {
         let repository: Data<Box<dyn UserRepository>> =
@@ -68,9 +139,14 @@ async fn main() -> Result<()> {
         App::new()
             .wrap(Logger::default())
             .wrap(cors)
+            .wrap(SessionMiddleware::new(
+                CookieSessionStore::default(),
+                secret_key.clone(),
+            ))
             .app_data(env.clone())
             .app_data(repository.clone())
             .service(login)
+            .service(signup)
     })
     .bind(("0.0.0.0", 8080))
     .expect("Can't running HTTP Server")

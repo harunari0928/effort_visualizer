@@ -1,7 +1,6 @@
 use crate::domain::users::User;
 use anyhow::Result;
 use async_trait::async_trait;
-use chrono::NaiveDate;
 use tokio_postgres::{types::ToSql, Client, NoTls, Row};
 use tracing::error;
 
@@ -47,11 +46,8 @@ impl UserRepositoryImpl {
                 email: result[0].get("email"),
                 external_id: result[0].get("external_id"),
                 user_name: result[0].get("user_name"),
-                registered_date: NaiveDate::parse_from_str(
-                    result[0].get("registered_date"),
-                    "%Y-%m-%d",
-                )?,
-                updated_date: NaiveDate::parse_from_str(result[0].get("updated_date"), "%Y-%m-%d")?,
+                registered_date: result[0].get("registered_date"),
+                updated_date: result[0].get("updated_date"),
             })
         })
     }
