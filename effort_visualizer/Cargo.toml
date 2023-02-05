@@ -11,6 +11,7 @@ anyhow = "1.0.57"
 async-trait = "0.1.53"
 actix-cors = "0.6.4"
 actix-session = { version = "0.7.2", features = ["cookie-session"] }
+derive_more = "0.99.17"
 futures = "0.3.21"
 google-signin = "0.3.0"
 itertools = "0.10.3"

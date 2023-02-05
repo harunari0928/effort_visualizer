@@ -6,7 +6,7 @@ use tracing::error;
 
 #[async_trait]
 pub trait UserRepository {
-    async fn add(&self, data: User) -> Result<()>;
+    async fn add(&self, data: &User) -> Result<()>;
     async fn find(&self, email: &str) -> Result<Option<User>>;
 }
 
@@ -55,7 +55,7 @@ impl UserRepositoryImpl {
 
 #[async_trait]
 impl UserRepository for UserRepositoryImpl {
-    async fn add(&self, data: User) -> Result<()> {
+    async fn add(&self, data: &User) -> Result<()> {
         let row: Vec<&'_ (dyn ToSql + Sync)> = vec![
             &data.email,
             &data.external_id,
