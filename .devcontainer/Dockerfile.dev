@@ -1,2 +1,4 @@
 ARG VARIANT="bullseye"
 FROM mcr.microsoft.com/vscode/devcontainers/rust:1-${VARIANT}
+
+RUN apt-get update && apt-get install -y nodejs npm default-jre
