@@ -22,6 +22,12 @@ use tracing::Level;
 
 #[actix_web::main]
 async fn main() -> Result<()> {
+    let args: Vec<String> = env::args().collect();
+    if args.contains(&"emit".to_string()) && args.contains(&"open-api-file".to_string()) {
+        println!("{}", ApiDoc::openapi().to_pretty_json().unwrap());
+        return Ok(());
+    }
+
     init_logger();
     std::env::set_var("RUST_LOG", "actix_web=info");
     let secret_key = Key::generate();
