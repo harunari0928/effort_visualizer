@@ -13,16 +13,14 @@ use anyhow::{Context, Result};
 use repositories::users_repository::UserRepository;
 
 use serde::Deserialize;
+use utoipa::ToSchema;
 
-#[derive(Deserialize)]
-pub struct CredentialInfo {
+#[derive(Deserialize, ToSchema)]
+pub struct LoginInfo {
     credential: String,
 }
 
-fn verify_token(
-    env_variables: &EnvVariables,
-    credential: &String,
-) -> Result<google_signin::IdInfo> {
+fn verify_token(env_variables: &EnvVariables, credential: &str) -> Result<google_signin::IdInfo> {
     let mut client = google_signin::Client::new();
     client
         .audiences
@@ -46,12 +44,21 @@ async fn add_user(
     user_repository.add(data).await.map_err(ApiError::from)
 }
 
+#[utoipa::path(
+    post,
+    request_body = LoginInfo,
+    responses(
+        (status = 200, description = "Login user"),
+        (status = 401, description = "Login failed"),
+        (status = 500, description = "Internal error")
+    ),
+)]
 #[post("/login")]
 pub async fn login(
     session: Session,
     env_variables: Data<EnvVariables>,
     user_repository: Data<Box<dyn UserRepository>>,
-    credential_info: web::Json<CredentialInfo>,
+    credential_info: web::Json<LoginInfo>,
 ) -> Result<HttpResponse, actix_web::Error> {
     let id_token = match verify_token(&env_variables, &credential_info.credential) {
         Ok(id_token) => id_token,
@@ -69,12 +76,22 @@ pub async fn login(
     Ok(HttpResponse::Ok().finish())
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct SignupInfo {
-    token: CredentialInfo,
+    token: LoginInfo,
     user_name: String,
 }
 
+#[utoipa::path(
+    post,
+    request_body = SignupInfo,
+    responses(
+        (status = 200, description = "Sign up user"),
+        (status = 400, description = "Have already signed up"),
+        (status = 401, description = "Login failed"),
+        (status = 500, description = "Internal error")
+    ),
+)]
 #[post("/signup")]
 pub async fn signup(
     session: Session,

@@ -8,9 +8,14 @@ use actix_session::{storage::CookieSessionStore, SessionMiddleware};
 use actix_web::{cookie::Key, http, middleware::Logger, web::Data, App, HttpServer};
 use anyhow::Result;
 
-use controllers::authentication_controllers::{login, signup};
+use controllers::{
+    api_doc::ApiDoc,
+    authentication_controllers::{login, signup},
+};
 use helpers::environments::EnvVariables;
 use repositories::users_repository::{UserRepository, UserRepositoryImpl};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 use std::env;
 use tracing::Level;
@@ -47,6 +52,10 @@ async fn main() -> Result<()> {
             .app_data(repository.clone())
             .service(login)
             .service(signup)
+            .service(
+                SwaggerUi::new("/swagger-ui/{_:.*}")
+                    .url("/api-doc/opanapi.json", ApiDoc::openapi()),
+            )
     })
     .bind(("0.0.0.0", 8080))
     .expect("Can't running HTTP Server")
