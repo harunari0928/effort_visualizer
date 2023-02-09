@@ -1,1 +1,110 @@
-{}
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "effort_visualizer",
+    "description": "",
+    "contact": {
+      "name": "",
+      "email": ""
+    },
+    "license": {
+      "name": ""
+    },
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/login": {
+      "post": {
+        "tags": [
+          "crate::controllers::authentication_controllers"
+        ],
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginInfo"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Login user"
+          },
+          "401": {
+            "description": "Login failed"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false
+      }
+    },
+    "/signup": {
+      "post": {
+        "tags": [
+          "crate::controllers::authentication_controllers"
+        ],
+        "operationId": "signup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupInfo"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Sign up user"
+          },
+          "400": {
+            "description": "Have already signed up"
+          },
+          "401": {
+            "description": "Login failed"
+          },
+          "500": {
+            "description": "Internal error"
+          }
+        },
+        "deprecated": false
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "LoginInfo": {
+        "type": "object",
+        "required": [
+          "credential"
+        ],
+        "properties": {
+          "credential": {
+            "type": "string"
+          }
+        }
+      },
+      "SignupInfo": {
+        "type": "object",
+        "required": [
+          "token",
+          "user_name"
+        ],
+        "properties": {
+          "token": {
+            "$ref": "#/components/schemas/LoginInfo"
+          },
+          "user_name": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
