@@ -1,5 +1,5 @@
 trigger:
-- master
+- main
 
 strategy:
   matrix:
@@ -10,6 +10,9 @@ pool:
   vmImage: ubuntu-latest
 
 steps:
+  - checkout: self
+    persistCredentials: true
+
   - script: |
       curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain $RUSTUP_TOOLCHAIN
       echo "##vso[task.setvariable variable=PATH;]$PATH:$HOME/.cargo/bin"      
@@ -18,11 +21,48 @@ steps:
     displayName: cargo build
   - script: cargo test --manifest-path ./effort_visualizer/Cargo.toml
     displayName: cargo test
+  - script: cargo run --manifest-path ./effort_visualizer/Cargo.toml emit open-api-file > ./api-client/open-api.json
+    displayName: emit open api file
+  
+  - task: Bash@3
+    condition: succeeded()
+    displayName: setup git
+    inputs: 
+      targetType: 'inline'
+      script: |
+        git config --global user.email "ryo13579978@gmail.com"
+        git config --global user.name "harunari"
+        if [ -n "$(git diff)" ]; then
+          echo "##vso[task.setvariable variable=hasOpenApiDiff]true"
+        else
+          echo "##vso[task.setvariable variable=hasOpenApiDiff]false"
+        fi
+        git config --global url."https://${GITHUB_PAT}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+  
+  - task: NodeTool@0
+    condition: and(succeeded(), eq(variables['hasOpenApiDiff'], 'true'))
+    inputs:
+      versionSource: 'spec'
+      versionSpec: '19.x'
+
+  - task: Bash@3
+    condition: and(succeeded(), eq(variables['hasOpenApiDiff'], 'true'))
+    displayName: generate open api client
+    inputs:
+      targetType: 'inline'
+      script: |
+        cd ./api-client
+        npm install
+        npm version patch
+        npx @openapitools/openapi-generator-cli generate -g typescript-fetch -i ./open-api.json
+        git add ./package.json ./package-lock.json ./open-api.json
+        npm publish
+        git commit -m "update open api file [skip ci]" && git push origin HEAD:$(Build.SourceBranch)
 
   - task: Docker@2
     displayName: 'build and push effort visualizer backend image'
     inputs:
-      containerRegistry: 'dockerRegistryServiceConnection'
+      containerRegistry: 'mydockerhub'
       repository: 'harunari/effort_visualizer'
       command: 'buildAndPush'
       Dockerfile: './effort_visualizer/Dockerfile'
@@ -32,10 +72,10 @@ steps:
         stable
 
   - task: Docker@2
-    displayName: 'build and push effort visualizer repository image'
+    displayName: 'build and push effort visualizer database image'
     inputs:
-      containerRegistry: 'dockerRegistryServiceConnection'
-      repository: 'harunari/effort_visualizer_repository'
+      containerRegistry: 'mydockerhub'
+      repository: 'harunari/effort_visualizer_database'
       command: 'buildAndPush'
       Dockerfile: './postgres/Dockerfile'
       buildContext: './postgres'
