@@ -30,6 +30,7 @@ steps:
       npm install
       npm version patch
       npx @openapitools/openapi-generator-cli generate -g typescript-fetch -i ./open-api.json
+      npx tsc
       git add ./package.json ./package-lock.json ./open-api.json
       npm publish
       git commit -m "update open api file [skip ci]" && git push origin HEAD:$(Build.SourceBranch)
