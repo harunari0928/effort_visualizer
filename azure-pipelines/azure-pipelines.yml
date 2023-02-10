@@ -1,0 +1,24 @@
+trigger:
+- main
+  paths:
+    exclude:
+    - README.md
+
+
+strategy:
+  matrix:
+    stable:
+      rustup_toolchain: stable
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- checkout: self
+  persistCredentials: true
+  
+- template: build.yml
+
+- template: publish-api-client.yml
+
+- template: push-images.yml

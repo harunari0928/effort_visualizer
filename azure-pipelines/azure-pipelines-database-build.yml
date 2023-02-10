@@ -1,0 +1,23 @@
+trigger:
+ paths:
+  include: ['../postgres/*']
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- checkout: self
+  persistCredentials: true
+  
+- task: Docker@2
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  displayName: 'build and push effort visualizer database image'
+  inputs:
+    containerRegistry: 'mydockerhub'
+    repository: 'harunari/effort_visualizer_database'
+    command: 'buildAndPush'
+    Dockerfile: './postgres/Dockerfile'
+    buildContext: './postgres'
+    tags: |
+      stable-$(Build.BuildId)
+      stable
