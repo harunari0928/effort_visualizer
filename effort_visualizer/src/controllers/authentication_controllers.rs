@@ -49,6 +49,7 @@ async fn add_user(
     request_body = LoginInfo,
     responses(
         (status = 200, description = "Login user"),
+        (status = 202, description = "You haven't sign up yet."),
         (status = 401, description = "Login failed"),
         (status = 500, description = "Internal error")
     ),
@@ -70,7 +71,7 @@ pub async fn login(
     };
     let user = match find_user(&user_repository, &email).await? {
         Some(user) => user,
-        None => return Ok(HttpResponse::Unauthorized().finish()),
+        None => return Ok(HttpResponse::Accepted().body("You haven't signed up yet.")),
     };
     session.insert("current_user", user)?;
     Ok(HttpResponse::Ok().finish())
@@ -100,7 +101,7 @@ pub async fn signup(
     signup_info: web::Json<SignupInfo>,
 ) -> Result<HttpResponse, actix_web::Error> {
     if signup_info.user_name.is_empty() {
-        return Ok(HttpResponse::BadRequest().body("user_name is empty."));
+        return Ok(HttpResponse::BadRequest().body("Username is empty."));
     }
 
     let id_token = match verify_token(&env_variables, &signup_info.token.credential) {
