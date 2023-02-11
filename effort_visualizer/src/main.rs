@@ -28,8 +28,9 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    init_logger();
     std::env::set_var("RUST_LOG", "actix_web=info");
+    std::env::set_var("RUST_BACKTRACE", "1");
+    init_logger();
     let secret_key = Key::generate();
     let env = Data::new(get_env_settings()?);
     HttpServer::new(move || {
