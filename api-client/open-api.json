@@ -33,6 +33,9 @@
           "200": {
             "description": "Login user"
           },
+          "202": {
+            "description": "You haven't sign up yet."
+          },
           "401": {
             "description": "Login failed"
           },
