@@ -21,6 +21,7 @@ services:
       DB_PORT: 5432
       DB_PASSWORD: mysecretpassword
       GOOGLE_CLIENT_ID: 1038036987590-67hu5cedcmtqmuc77s9kvc2dhthl1gv4.apps.googleusercontent.com
+      RUST_LOG: debug
     depends_on:
       - rdb
   rdb:

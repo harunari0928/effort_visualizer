@@ -28,7 +28,6 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    std::env::set_var("RUST_LOG", "actix_web=info");
     std::env::set_var("RUST_BACKTRACE", "1");
     init_logger();
     let secret_key = Key::generate();
@@ -72,13 +71,7 @@ async fn main() -> Result<()> {
 }
 
 fn init_logger() {
-    tracing_subscriber::fmt()
-        // filter spans/events with level TRACE or higher.
-        .with_max_level(Level::INFO)
-        .json()
-        .flatten_event(true)
-        // build but do not install the subscriber.
-        .init();
+    tracing_subscriber::fmt().json().flatten_event(true).init();
 }
 
 pub fn get_env_settings() -> Result<EnvVariables> {
