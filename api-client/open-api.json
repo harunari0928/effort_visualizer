@@ -31,10 +31,14 @@
         },
         "responses": {
           "200": {
-            "description": "Login user"
-          },
-          "202": {
-            "description": "You haven't sign up yet."
+            "description": "Login user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResult"
+                }
+              }
+            }
           },
           "401": {
             "description": "Login failed"
@@ -64,10 +68,14 @@
         },
         "responses": {
           "200": {
-            "description": "Sign up user"
-          },
-          "400": {
-            "description": "Have already signed up"
+            "description": "Sign up user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignupResult"
+                }
+              }
+            }
           },
           "401": {
             "description": "Login failed"
@@ -93,6 +101,24 @@
           }
         }
       },
+      "LoginResult": {
+        "type": "object",
+        "required": [
+          "situation"
+        ],
+        "properties": {
+          "situation": {
+            "$ref": "#/components/schemas/LoginSituation"
+          }
+        }
+      },
+      "LoginSituation": {
+        "type": "string",
+        "enum": [
+          "Succeeded",
+          "NotRegistered"
+        ]
+      },
       "SignupInfo": {
         "type": "object",
         "required": [
@@ -107,6 +133,24 @@
             "type": "string"
           }
         }
+      },
+      "SignupResult": {
+        "type": "object",
+        "required": [
+          "situation"
+        ],
+        "properties": {
+          "situation": {
+            "$ref": "#/components/schemas/SignupSituation"
+          }
+        }
+      },
+      "SignupSituation": {
+        "type": "string",
+        "enum": [
+          "Succeeded",
+          "AlreadyRegistered"
+        ]
       }
     }
   }
