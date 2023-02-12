@@ -18,7 +18,6 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use std::env;
-use tracing::Level;
 
 #[actix_web::main]
 async fn main() -> Result<()> {

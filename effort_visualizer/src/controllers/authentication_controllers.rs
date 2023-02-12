@@ -12,12 +12,23 @@ use anyhow::{Context, Result};
 
 use repositories::users_repository::UserRepository;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 #[derive(Deserialize, ToSchema)]
 pub struct LoginInfo {
     credential: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct LoginResult {
+    situation: LoginSituation,
+}
+
+#[derive(Serialize, ToSchema)]
+pub enum LoginSituation {
+    Succeeded,
+    NotRegistered,
 }
 
 fn verify_token(env_variables: &EnvVariables, credential: &str) -> Result<google_signin::IdInfo> {
@@ -48,8 +59,7 @@ async fn add_user(
     post,
     request_body = LoginInfo,
     responses(
-        (status = 200, description = "Login user"),
-        (status = 202, description = "You haven't sign up yet."),
+        (status = 200, description = "Login user", body = LoginResult),
         (status = 401, description = "Login failed"),
         (status = 500, description = "Internal error")
     ),
@@ -71,24 +81,39 @@ pub async fn login(
     };
     let user = match find_user(&user_repository, &email).await? {
         Some(user) => user,
-        None => return Ok(HttpResponse::Accepted().body("You haven't signed up yet.")),
+        None => {
+            return Ok(HttpResponse::Ok().json(LoginResult {
+                situation: LoginSituation::NotRegistered,
+            }))
+        }
     };
     session.insert("current_user", user)?;
-    Ok(HttpResponse::Ok().finish())
+    Ok(HttpResponse::Ok().json(LoginResult {
+        situation: LoginSituation::Succeeded,
+    }))
 }
-
 #[derive(Deserialize, ToSchema)]
 pub struct SignupInfo {
     token: LoginInfo,
     user_name: String,
 }
 
+#[derive(Serialize, ToSchema)]
+pub struct SignupResult {
+    situation: SignupSituation,
+}
+
+#[derive(Serialize, ToSchema)]
+pub enum SignupSituation {
+    Succeeded,
+    AlreadyRegistered,
+}
+
 #[utoipa::path(
     post,
     request_body = SignupInfo,
     responses(
-        (status = 200, description = "Sign up user"),
-        (status = 400, description = "Have already signed up"),
+        (status = 200, description = "Sign up user", body = SignupResult),
         (status = 401, description = "Login failed"),
         (status = 500, description = "Internal error")
     ),
@@ -114,7 +139,9 @@ pub async fn signup(
     };
 
     if find_user(&user_repository, &email).await?.is_some() {
-        return Ok(HttpResponse::BadRequest().body("You have already signed up."));
+        return Ok(HttpResponse::Ok().json(SignupResult {
+            situation: SignupSituation::AlreadyRegistered,
+        }));
     }
 
     let new_user = User {
@@ -126,5 +153,7 @@ pub async fn signup(
     };
     add_user(&user_repository, &new_user).await?;
     session.insert("current_user", new_user)?;
-    Ok(HttpResponse::Ok().finish())
+    Ok(HttpResponse::Ok().json(SignupResult {
+        situation: SignupSituation::Succeeded,
+    }))
 }
