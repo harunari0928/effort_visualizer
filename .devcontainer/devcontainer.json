@@ -3,26 +3,34 @@
 	"service": "dev",
 	"dockerComposeFile": "docker-compose.yml",
 	"workspaceFolder": "/src",
-	"settings": {
-		"lldb.executable": "/usr/bin/lldb",
-		"files.watcherExclude": {
-			"**/target/**": true
-		},
-		"files.autoSave": "afterDelay",
-		"files.autoSaveDelay": 500,
-		"rust-analyzer.checkOnSave.command": "clippy",
-		"editor.formatOnSave": true,
-		"editor.autoIndent": "full",
-		"editor.tabSize": 4,
-		"editor.insertSpaces": true,
-		"editor.comments.insertSpace": true
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"lldb.executable": "/usr/bin/lldb",
+				"files.watcherExclude": {
+					"**/target/**": true
+				},
+				"files.autoSave": "afterDelay",
+				"files.autoSaveDelay": 500,
+				"rust-analyzer.checkOnSave.command": "clippy",
+				"editor.formatOnSave": true,
+				"editor.autoIndent": "full",
+				"editor.tabSize": 4,
+				"editor.insertSpaces": true,
+				"editor.comments.insertSpace": true,
+				"rust-analyzer.diagnostics.disabled": [
+					"unresolved-proc-macro"
+				],
+				"rust-analyzer.procMacro.attributes.enable": true
+			},
+			"extensions": [
+				"vadimcn.vscode-lldb",
+				"mutantdino.resourcemonitor",
+				"rust-lang.rust-analyzer",
+				"tamasfe.even-better-toml",
+				"serayuzgur.crates"
+			]
+		}
 	},
-	"extensions": [
-		"vadimcn.vscode-lldb",
-		"mutantdino.resourcemonitor",
-		"rust-lang.rust-analyzer",
-		"tamasfe.even-better-toml",
-		"serayuzgur.crates"
-	],
 	"remoteUser": "vscode"
 }
