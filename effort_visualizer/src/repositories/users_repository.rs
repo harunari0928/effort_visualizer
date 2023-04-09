@@ -1,11 +1,13 @@
 use crate::domain::users::User;
 use anyhow::Result;
 use async_trait::async_trait;
+use mockall::automock;
 use tokio_postgres::{types::ToSql, Client, NoTls, Row};
 use tracing::error;
 
+#[automock]
 #[async_trait]
-pub trait UserRepository {
+pub trait UserRepository: Send {
     async fn add(&self, data: &User) -> Result<()>;
     async fn find(&self, email: &str) -> Result<Option<User>>;
 }

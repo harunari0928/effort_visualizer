@@ -1,7 +1,7 @@
 use utoipa::OpenApi;
 
-use super::authentication_controllers::{
-    LoginInfo, LoginResult, LoginSituation, SignupInfo, SignupResult, SignupSituation,
+use super::super::dto::{
+    LoginRequest, LoginResult, LoginSituation, SignupRequest, SignupResult, SignupSituation,
 };
 
 #[derive(OpenApi)]
@@ -11,9 +11,9 @@ use super::authentication_controllers::{
         crate::controllers::authentication_controllers::signup
     ),
     components(schemas(
-        LoginInfo,
+        LoginRequest,
         LoginResult,
-        SignupInfo,
+        SignupRequest,
         SignupResult,
         LoginSituation,
         SignupSituation

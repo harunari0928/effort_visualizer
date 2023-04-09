@@ -1,7 +1,9 @@
 mod controllers;
 mod domain;
+mod dto;
 mod helpers;
 mod repositories;
+mod usecases;
 
 use actix_cors::Cors;
 use actix_session::{storage::CookieSessionStore, SessionMiddleware};
@@ -14,6 +16,7 @@ use controllers::{
 };
 use helpers::environments::EnvVariables;
 use repositories::users_repository::{UserRepository, UserRepositoryImpl};
+use usecases::authentication_usecase::{AuthenticationUsecase, AuthenticationUsecaseImpl};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -32,14 +35,16 @@ async fn main() -> Result<()> {
     let secret_key = Key::generate();
     let env = Data::new(get_env_settings()?);
     HttpServer::new(move || {
-        let repository: Data<Box<dyn UserRepository>> =
-            Data::new(Box::new(UserRepositoryImpl::new(
-                env.db_server.to_owned(),
-                env.db_port.to_owned(),
-                env.db_name.to_owned(),
-                env.db_user_id.to_owned(),
-                env.db_password.to_owned(),
-            )));
+        let repository: Box<dyn UserRepository + Send + Sync> = Box::new(UserRepositoryImpl::new(
+            env.db_server.to_owned(),
+            env.db_port.to_owned(),
+            env.db_name.to_owned(),
+            env.db_user_id.to_owned(),
+            env.db_password.to_owned(),
+        ));
+        let authentication_usecase: Data<Box<dyn AuthenticationUsecase>> = Data::new(Box::new(
+            AuthenticationUsecaseImpl::new(env.clone().into_inner(), repository),
+        ));
         let cors = Cors::default()
             .allowed_origin("http://localhost:8081")
             .allowed_methods(vec!["GET", "POST"])
@@ -54,7 +59,7 @@ async fn main() -> Result<()> {
                 secret_key.clone(),
             ))
             .app_data(env.clone())
-            .app_data(repository.clone())
+            .app_data(authentication_usecase)
             .service(login)
             .service(signup)
             .service(
