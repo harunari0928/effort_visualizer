@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct User {
     pub email: String,
     pub external_id: String,

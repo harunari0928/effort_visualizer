@@ -73,3 +73,223 @@ pub async fn signup(
         _ => Ok(HttpResponse::Unauthorized().json(result)),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    mod login {
+        use crate::domain::users::User;
+        use crate::dto::LoginRequest;
+        use crate::dto::LoginResult;
+        use crate::dto::LoginSituation;
+        use crate::login;
+        use crate::usecases::authentication_usecase::{
+            AuthenticationUsecase, MockAuthenticationUsecase,
+        };
+        use actix_web::{body::MessageBody, http, test, web, App};
+
+        #[actix_web::test]
+        async fn ログイン成功時ステータス200を返す() {
+            let mut mock_usecase = MockAuthenticationUsecase::new();
+            mock_usecase.expect_login().returning(|_| {
+                Ok(LoginResult {
+                    situation: LoginSituation::Succeeded,
+                    login_user: Some(User {
+                        email: "".to_owned(),
+                        external_id: "".to_owned(),
+                        user_name: "".to_owned(),
+                        registered_date: std::time::SystemTime::now(),
+                        updated_date: std::time::SystemTime::now(),
+                    }),
+                    description: None,
+                })
+            });
+            let usecase = web::Data::new(Box::new(mock_usecase) as Box<dyn AuthenticationUsecase>);
+
+            let app = test::init_service(App::new().app_data(usecase.clone()).service(login)).await;
+
+            let req = test::TestRequest::post()
+                .uri("/login")
+                .set_json(&LoginRequest {
+                    credential: "test".to_owned(),
+                })
+                .to_request();
+
+            let resp = test::call_service(&app, req).await;
+            assert_eq!(http::StatusCode::OK, resp.status());
+        }
+
+        #[actix_web::test]
+        async fn ログイン成功時ログイン結果オブジェクトを返す() {
+            let mut mock_usecase = MockAuthenticationUsecase::new();
+            let login_result = LoginResult {
+                situation: LoginSituation::Succeeded,
+                login_user: Some(User {
+                    email: "".to_owned(),
+                    external_id: "".to_owned(),
+                    user_name: "".to_owned(),
+                    registered_date: std::time::SystemTime::now(),
+                    updated_date: std::time::SystemTime::now(),
+                }),
+                description: None,
+            };
+            let expected = login_result.clone();
+            mock_usecase
+                .expect_login()
+                .returning(move |_| Ok(login_result.clone()));
+            let usecase = web::Data::new(Box::new(mock_usecase) as Box<dyn AuthenticationUsecase>);
+
+            let app = test::init_service(App::new().app_data(usecase.clone()).service(login)).await;
+
+            let req = test::TestRequest::post()
+                .uri("/login")
+                .set_json(&LoginRequest {
+                    credential: "test".to_owned(),
+                })
+                .to_request();
+
+            let resp = test::call_service(&app, req).await;
+            let login_result_from_response: LoginResult =
+                serde_json::from_slice(resp.into_body().try_into_bytes().unwrap().as_ref())
+                    .unwrap();
+
+            assert_eq!(expected, login_result_from_response);
+        }
+
+        #[actix_web::test]
+        async fn ログインに成功したがユーザを取得できなかった時ステータス500を返す() {
+            let mut mock_usecase = MockAuthenticationUsecase::new();
+            mock_usecase.expect_login().returning(|_| {
+                Ok(LoginResult {
+                    situation: LoginSituation::Succeeded,
+                    login_user: None,
+                    description: None,
+                })
+            });
+            let usecase = web::Data::new(Box::new(mock_usecase) as Box<dyn AuthenticationUsecase>);
+
+            let app = test::init_service(App::new().app_data(usecase.clone()).service(login)).await;
+
+            let req = test::TestRequest::post()
+                .uri("/login")
+                .set_json(&LoginRequest {
+                    credential: "test".to_owned(),
+                })
+                .to_request();
+
+            let resp = test::call_service(&app, req).await;
+            assert_eq!(http::StatusCode::INTERNAL_SERVER_ERROR, resp.status());
+        }
+
+        #[actix_web::test]
+        async fn 会員未登録時ステータス202を返す() {
+            let mut mock_usecase = MockAuthenticationUsecase::new();
+            mock_usecase.expect_login().returning(|_| {
+                Ok(LoginResult {
+                    situation: LoginSituation::NotRegistered,
+                    login_user: None,
+                    description: None,
+                })
+            });
+            let usecase = web::Data::new(Box::new(mock_usecase) as Box<dyn AuthenticationUsecase>);
+
+            let app = test::init_service(App::new().app_data(usecase.clone()).service(login)).await;
+
+            let req = test::TestRequest::post()
+                .uri("/login")
+                .set_json(&LoginRequest {
+                    credential: "test".to_owned(),
+                })
+                .to_request();
+
+            let resp = test::call_service(&app, req).await;
+            assert_eq!(http::StatusCode::ACCEPTED, resp.status());
+        }
+
+        #[actix_web::test]
+        async fn 会員未登録時ログイン結果オブジェクトを返す() {
+            let mut mock_usecase = MockAuthenticationUsecase::new();
+            let login_result = LoginResult {
+                situation: LoginSituation::NotRegistered,
+                login_user: None,
+                description: None,
+            };
+            let expected = login_result.clone();
+            mock_usecase
+                .expect_login()
+                .returning(move |_| Ok(login_result.clone()));
+            let usecase = web::Data::new(Box::new(mock_usecase) as Box<dyn AuthenticationUsecase>);
+
+            let app = test::init_service(App::new().app_data(usecase.clone()).service(login)).await;
+
+            let req = test::TestRequest::post()
+                .uri("/login")
+                .set_json(&LoginRequest {
+                    credential: "test".to_owned(),
+                })
+                .to_request();
+
+            let resp = test::call_service(&app, req).await;
+            let login_result_from_response: LoginResult =
+                serde_json::from_slice(resp.into_body().try_into_bytes().unwrap().as_ref())
+                    .unwrap();
+
+            assert_eq!(expected, login_result_from_response);
+        }
+
+        #[actix_web::test]
+        async fn emailが空のとき時ステータス401を返す() {
+            let mut mock_usecase = MockAuthenticationUsecase::new();
+            mock_usecase.expect_login().returning(|_| {
+                Ok(LoginResult {
+                    situation: LoginSituation::EmailIsEmpty,
+                    login_user: None,
+                    description: None,
+                })
+            });
+            let usecase = web::Data::new(Box::new(mock_usecase) as Box<dyn AuthenticationUsecase>);
+
+            let app = test::init_service(App::new().app_data(usecase.clone()).service(login)).await;
+
+            let req = test::TestRequest::post()
+                .uri("/login")
+                .set_json(&LoginRequest {
+                    credential: "test".to_owned(),
+                })
+                .to_request();
+
+            let resp = test::call_service(&app, req).await;
+            assert_eq!(http::StatusCode::UNAUTHORIZED, resp.status());
+        }
+
+        #[actix_web::test]
+        async fn emailが空のとき時結果オブジェクトを返す() {
+            let mut mock_usecase = MockAuthenticationUsecase::new();
+            let login_result = LoginResult {
+                situation: LoginSituation::EmailIsEmpty,
+                login_user: None,
+                description: None,
+            };
+            let expected = login_result.clone();
+            mock_usecase
+                .expect_login()
+                .returning(move |_| Ok(login_result.clone()));
+            let usecase = web::Data::new(Box::new(mock_usecase) as Box<dyn AuthenticationUsecase>);
+
+            let app = test::init_service(App::new().app_data(usecase.clone()).service(login)).await;
+
+            let req = test::TestRequest::post()
+                .uri("/login")
+                .set_json(&LoginRequest {
+                    credential: "test".to_owned(),
+                })
+                .to_request();
+
+            let resp = test::call_service(&app, req).await;
+            let login_result_from_response: LoginResult =
+                serde_json::from_slice(resp.into_body().try_into_bytes().unwrap().as_ref())
+                    .unwrap();
+
+            assert_eq!(expected, login_result_from_response);
+        }
+    }
+}

@@ -3,19 +3,19 @@ use utoipa::ToSchema;
 
 use crate::domain::users::User;
 
-#[derive(Deserialize, ToSchema)]
+#[derive(Deserialize, Serialize, ToSchema)]
 pub struct LoginRequest {
     pub credential: String,
 }
 
-#[derive(Deserialize, Serialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, ToSchema)]
 pub struct LoginResult {
     pub situation: LoginSituation,
     pub login_user: Option<User>,
     pub description: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, ToSchema)]
+#[derive(Clone,Debug,  Deserialize, PartialEq, Serialize, ToSchema)]
 pub enum LoginSituation {
     Succeeded,
     NotRegistered,
