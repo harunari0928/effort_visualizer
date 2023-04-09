@@ -3,10 +3,6 @@
   "info": {
     "title": "effort_visualizer",
     "description": "",
-    "contact": {
-      "name": "",
-      "email": ""
-    },
     "license": {
       "name": ""
     },
@@ -23,7 +19,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/LoginInfo"
+                "$ref": "#/components/schemas/LoginRequest"
               }
             }
           },
@@ -40,14 +36,30 @@
               }
             }
           },
+          "202": {
+            "description": "Not Registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResult"
+                }
+              }
+            }
+          },
           "401": {
-            "description": "Login failed"
+            "description": "Login failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResult"
+                }
+              }
+            }
           },
           "500": {
             "description": "Internal error"
           }
-        },
-        "deprecated": false
+        }
       }
     },
     "/signup": {
@@ -60,7 +72,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SignupInfo"
+                "$ref": "#/components/schemas/SignupRequest"
               }
             }
           },
@@ -68,7 +80,17 @@
         },
         "responses": {
           "200": {
-            "description": "Sign up user",
+            "description": "Sign up is succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignupResult"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The user is already registered.",
             "content": {
               "application/json": {
                 "schema": {
@@ -78,19 +100,25 @@
             }
           },
           "401": {
-            "description": "Login failed"
+            "description": "Login failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignupResult"
+                }
+              }
+            }
           },
           "500": {
-            "description": "Internal error"
+            "description": "Internal error."
           }
-        },
-        "deprecated": false
+        }
       }
     }
   },
   "components": {
     "schemas": {
-      "LoginInfo": {
+      "LoginRequest": {
         "type": "object",
         "required": [
           "credential"
@@ -107,6 +135,18 @@
           "situation"
         ],
         "properties": {
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "login_user": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/User"
+              }
+            ],
+            "nullable": true
+          },
           "situation": {
             "$ref": "#/components/schemas/LoginSituation"
           }
@@ -116,10 +156,12 @@
         "type": "string",
         "enum": [
           "Succeeded",
-          "NotRegistered"
+          "NotRegistered",
+          "VerificationFailed",
+          "EmailIsEmpty"
         ]
       },
-      "SignupInfo": {
+      "SignupRequest": {
         "type": "object",
         "required": [
           "token",
@@ -127,7 +169,7 @@
         ],
         "properties": {
           "token": {
-            "$ref": "#/components/schemas/LoginInfo"
+            "$ref": "#/components/schemas/LoginRequest"
           },
           "user_name": {
             "type": "string"
@@ -140,6 +182,18 @@
           "situation"
         ],
         "properties": {
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "login_user": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/User"
+              }
+            ],
+            "nullable": true
+          },
           "situation": {
             "$ref": "#/components/schemas/SignupSituation"
           }
@@ -149,7 +203,10 @@
         "type": "string",
         "enum": [
           "Succeeded",
-          "AlreadyRegistered"
+          "AlreadyRegistered",
+          "VerificationFailed",
+          "EmailIsEmpty",
+          "UserNameIsEmpty"
         ]
       }
     }
